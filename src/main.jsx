@@ -1,6 +1,7 @@
 import React from "react";
+import ReactDOM from "react-dom/client";
 
-export default function App() {
+function Test() {
   return (
     <div
       style={{
@@ -10,10 +11,16 @@ export default function App() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        fontSize: "40px"
+        fontSize: "40px",
       }}
     >
-      HELLO WORLD
+      MAIN TEST
     </div>
   );
 }
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <Test />
+  </React.StrictMode>
+);
