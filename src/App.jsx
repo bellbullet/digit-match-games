@@ -226,15 +226,7 @@ useEffect(() => {
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 100,
         background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px)" }} />
 
-<div
-  style={{
-    display: "flex",
-    gap: 24,
-    alignItems: "flex-start",
-    flexWrap: "wrap",
-    justifyContent: "center",
-  }}
->
+<div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
 
         {/* ===== LEFT PANEL ===== */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", minWidth: 220,width: "100%",maxWidth: 320}}>
