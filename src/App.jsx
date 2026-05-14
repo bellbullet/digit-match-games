@@ -8,7 +8,7 @@ export default function App() {
       style={{
         minHeight: "100vh",
         background: "#111",
-        color: "white",
+        color: "red",
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
