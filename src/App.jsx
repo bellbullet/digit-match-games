@@ -88,7 +88,10 @@ export default function App() {
   const [taState, setTaState]   = useState("idle"); // idle | running | done
   const [taTime, setTaTime]     = useState(TIME_ATTACK_SEC);
   const [taScore, setTaScore]   = useState(0);
-  const [taBest, setTaBest]     = useState(null);
+ const [taBest, setTaBest] = useState(() => {
+  const saved = localStorage.getItem("digitMatchBest");
+  return saved ? Number(saved) : null;
+});
   const [taWaves, setTaWaves]   = useState(0);
   const timerRef = useRef(null);
 
@@ -133,11 +136,15 @@ export default function App() {
     return () => clearInterval(timerRef.current);
   }, [taState]);
 
-  useEffect(() => {
-    if (taState === "done") {
-      setTaBest(prev => prev === null ? taScore : Math.max(prev, taScore));
-    }
-  }, [taState]);
+useEffect(() => {
+  if (taState === "done") {
+    setTaBest(prev => {
+      const next = prev === null ? taScore : Math.max(prev, taScore);
+      localStorage.setItem("digitMatchBest", next);
+      return next;
+    });
+  }
+}, [taState, taScore]);
 
   function adjust(idx, delta) {
     setCurrent(prev => {
