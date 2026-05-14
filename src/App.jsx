@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 
 const DIGITS = 3;
 const HISTORY_SIZE = 20;
-const TIME_ATTACK_SEC = 30;
+const TIME_ATTACK_SEC = 60;
 
 const rnd = () => Array.from({ length: DIGITS }, () => Math.floor(Math.random() * 10));
 const rndHistory = () => Array.from({ length: HISTORY_SIZE }, () => rnd());
@@ -433,7 +433,7 @@ useEffect(() => {
             {taState === "idle" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <div style={{ color: "#555", fontSize: 10, textAlign: "center", lineHeight: 1.7 }}>
-                  30秒間で何ウェーブ<br />クリアできるか挑戦！<br />
+                  60秒間で何ウェーブ<br />クリアできるか挑戦！<br />
                   <span style={{ color: "#333" }}>スコア = Σ効率(各Wave)</span>
                 </div>
                 {taBest !== null && (
