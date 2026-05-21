@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const DIGITS = 3;
 const HISTORY_SIZE = 20;
-const TIME_ATTACK_SEC = 60;
+const TIME_ATTACK_SEC = 30;
 
 const rnd = () => Array.from({ length: DIGITS }, () => Math.floor(Math.random() * 10));
-const rndHistory = () => Array.from({ length: HISTORY_SIZE }, () => rnd());
+const rndLimited = () => {
+  const n = Math.floor(Math.random() * 200); // 0-199
+  return [Math.floor(n / 100), Math.floor((n % 100) / 10), n % 10];
+};
+const rndHistory = (gen = rnd) => Array.from({ length: HISTORY_SIZE }, gen);
 const str3 = (d) => d.join("");
 
 function minDist(from, to) {
@@ -83,17 +87,27 @@ export default function App() {
   const [wavelog, setWavelog]     = useState([]);
   const [flash, setFlash]         = useState(false);
   const [justMatched, setJustMatched] = useState(false);
+  const [mode, setMode] = useState("normal"); // "normal" | "limited"
+  const rndByMode = (m) => (m ?? mode) === "limited" ? rndLimited() : rnd();
 
   // Time attack
   const [taState, setTaState]   = useState("idle"); // idle | running | done
   const [taTime, setTaTime]     = useState(TIME_ATTACK_SEC);
   const [taScore, setTaScore]   = useState(0);
- const [taBest, setTaBest] = useState(() => {
-  const saved = localStorage.getItem("digitMatchBest");
-  return saved ? Number(saved) : null;
-});
+  const [taBest, setTaBest]     = useState(null);
   const [taWaves, setTaWaves]   = useState(0);
   const timerRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const calcScale = () => {
+      // content is ~500px wide; clamp between 0.45 and 1
+      const s = Math.min(1, (window.innerWidth - 16) / 500);
+      setScale(Math.max(0.45, s));
+    };
+    calcScale();
+    window.addEventListener("resize", calcScale);
+    return () => window.removeEventListener("resize", calcScale);
+  }, []);
 
   const isMatch = current.every((d, i) => d === target[i]);
   const optFrom000 = minDist(Array(DIGITS).fill(0), target);
@@ -136,15 +150,11 @@ export default function App() {
     return () => clearInterval(timerRef.current);
   }, [taState]);
 
-useEffect(() => {
-  if (taState === "done") {
-    setTaBest(prev => {
-      const next = prev === null ? taScore : Math.max(prev, taScore);
-      localStorage.setItem("digitMatchBest", next);
-      return next;
-    });
-  }
-}, [taState, taScore]);
+  useEffect(() => {
+    if (taState === "done") {
+      setTaBest(prev => prev === null ? taScore : Math.max(prev, taScore));
+    }
+  }, [taState]);
 
   function adjust(idx, delta) {
     setCurrent(prev => {
@@ -172,7 +182,7 @@ useEffect(() => {
       setTaScore(s => s + wEff);
       setTaWaves(w => w + 1);
     }
-    setTarget(rnd());
+    setTarget(rndByMode());
     setCurrent(Array(DIGITS).fill(0));
     setMoves(0);
     setWave(w => w + 1);
@@ -186,12 +196,12 @@ useEffect(() => {
     setTaTime(TIME_ATTACK_SEC);
     setTaScore(0);
     setTaWaves(0);
-    setTarget(rnd());
+    setTarget(rndByMode());
     setCurrent(Array(DIGITS).fill(0));
     setMoves(0);
     setWave(1);
     setWavelog([]);
-    setHistory(rndHistory());
+    setHistory(rndHistory(() => rndByMode()));
     setSelectedHist(null);
     setJustMatched(false);
   }
@@ -200,12 +210,12 @@ useEffect(() => {
     clearInterval(timerRef.current);
     setTaState("idle");
     setTaTime(TIME_ATTACK_SEC);
-    setTarget(rnd());
+    setTarget(rndByMode());
     setCurrent(Array(DIGITS).fill(0));
     setMoves(0);
     setWave(1);
     setWavelog([]);
-    setHistory(rndHistory());
+    setHistory(rndHistory(() => rndByMode()));
     setSelectedHist(null);
   }
 
@@ -215,21 +225,58 @@ useEffect(() => {
 
   return (
     <div style={{
-      width: "100%",
-      overflowX: "auto",
       minHeight: "100vh",
       background: "#0a0a0f",
       backgroundImage: "radial-gradient(ellipse at 20% 30%, #0d1f3c 0%, transparent 60%), radial-gradient(ellipse at 80% 70%, #1a0d2e 0%, transparent 60%)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 20, fontFamily: "'Courier New', monospace",
+      display: "flex", alignItems: "flex-start", justifyContent: "center",
+      paddingTop: `${Math.max(8, (window.innerHeight - 900 * scale) / 2)}px`,
+      paddingBottom: 8,
+      fontFamily: "'Courier New', monospace",
+      overflowX: "hidden",
+      overflowY: "auto",
+      boxSizing: "border-box",
     }}>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 100,
         background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px)" }} />
 
-<div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+      <div style={{
+        display: "flex", gap: 24, alignItems: "flex-start",
+        transformOrigin: "top center",
+        transform: `scale(${scale})`,
+        transition: "transform 0.15s",
+      }}>
 
         {/* ===== LEFT PANEL ===== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", minWidth: 220,width: "100%",maxWidth: 320}}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", minWidth: 220 }}>
+
+          {/* Mode Toggle */}
+          <div style={{ display: "flex", gap: 0, width: "100%", borderRadius: 8, overflow: "hidden", border: "1px solid #2a2a2a" }}>
+            {["normal", "limited"].map(m => (
+              <button key={m} onClick={() => {
+                if (mode === m || taState === "running") return;
+                setMode(m);
+                setTarget(rndByMode(m));
+                setCurrent(Array(DIGITS).fill(0));
+                setMoves(0);
+                setWave(1);
+                setWavelog([]);
+                setHistory(rndHistory(() => rndByMode(m)));
+                setSelectedHist(null);
+              }} style={{
+                flex: 1, padding: "6px 0",
+                background: mode === m ? (m === "normal" ? "#1a3a1a" : "#1a1a3a") : "transparent",
+                border: "none",
+                color: mode === m ? (m === "normal" ? "#00cc66" : "#6699ff") : "#333",
+                fontSize: 10, fontWeight: 900, letterSpacing: 2,
+                cursor: taState === "running" ? "default" : "pointer",
+                transition: "all 0.15s",
+                borderRight: m === "normal" ? "1px solid #2a2a2a" : "none",
+                textShadow: mode === m ? `0 0 8px ${m === "normal" ? "#00cc66" : "#6699ff"}` : "none",
+              }}>
+                {m === "normal" ? "0-999" : "0-199"}
+              </button>
+            ))}
+          </div>
 
           {/* Wave + Timer */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
@@ -258,7 +305,9 @@ useEffect(() => {
             boxShadow: flash ? "0 0 30px #ff3355" : "0 0 10px rgba(255,51,85,0.2)",
             transition: "all 0.15s", opacity: taState === "done" ? 0.4 : 1,
           }}>
-            <div style={{ color: "#ff3355", fontSize: 10, letterSpacing: 4, marginBottom: 8, textAlign: "center" }}>■ TARGET</div>
+            <div style={{ color: "#ff3355", fontSize: 10, letterSpacing: 4, marginBottom: 8, textAlign: "center" }}>
+              ■ TARGET {mode === "limited" && <span style={{ color: "#6699ff", fontSize: 9 }}>[0-199]</span>}
+            </div>
             <div style={{ display: "flex", gap: 8 }}>
               {target.map((d, i) => <DigitDisplay key={i} value={d} color="#ff3355" glow />)}
             </div>
@@ -435,7 +484,7 @@ useEffect(() => {
             {taState === "idle" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <div style={{ color: "#555", fontSize: 10, textAlign: "center", lineHeight: 1.7 }}>
-                  60秒間で何ウェーブ<br />クリアできるか挑戦！<br />
+                  30秒間で何ウェーブ<br />クリアできるか挑戦！<br />
                   <span style={{ color: "#333" }}>スコア = Σ効率(各Wave)</span>
                 </div>
                 {taBest !== null && (
