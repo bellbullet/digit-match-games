@@ -135,6 +135,62 @@ const CSS = `
   }
   @keyframes dm-pulse { from { opacity: 1; } to { opacity: .45; } }
   .dm-timer-low { animation: dm-pulse .5s ease-in-out infinite alternate; }
+
+  /* ===== Mobile: fit everything in one screen (per-device height) ===== */
+  @media (max-width: 720px) {
+    .dm-root { height: 100vh; height: 100dvh; padding: 10px 12px 12px; overflow: hidden; }
+    .dm-wrap { height: 100%; display: flex; flex-direction: column; }
+    .dm-head { margin-bottom: 8px; align-items: center; flex-wrap: nowrap; }
+    .dm-title { font-size: 10px; }
+    .dm-wave { margin-top: 2px; }
+    .dm-wave-num { font-size: 28px; }
+    .dm-seg button { padding: 6px 12px; font-size: 11px; }
+    .dm-grid { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
+    .dm-col { gap: 8px; }
+    .dm-grid > .dm-col:last-child { flex: 1; min-height: 0; }
+    .dm-panel { padding: 10px 12px; border-radius: 12px; }
+    .dm-panel-label { margin-bottom: 8px; font-size: 10px; }
+    .dm-digit {
+      width: clamp(48px, 14vw, 58px);
+      height: clamp(46px, 7.2dvh, 62px);
+      font-size: clamp(28px, 4.2dvh, 36px);
+      border-radius: 10px;
+    }
+    .dm-step { width: clamp(48px, 14vw, 58px); height: clamp(26px, 3.8dvh, 32px); font-size: 13px; border-radius: 8px; }
+    .dm-stats { gap: 8px; }
+    .dm-stat { padding: 6px 8px; border-radius: 10px; }
+    .dm-stat-label { margin-bottom: 2px; font-size: 9px; }
+    .dm-stat-value { font-size: 16px; }
+    .dm-confirm { height: 44px; font-size: 15px; border-radius: 10px; }
+    .dm-panel-log { display: none; }
+    .dm-panel-history { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .dm-hist {
+      flex: 1; min-height: 0;
+      display: grid; grid-template-columns: 1fr 1fr;
+      grid-template-rows: repeat(5, 1fr); gap: 6px;
+    }
+    .dm-hist-row { padding: 4px 10px; border-radius: 10px; gap: 8px; min-height: 0; }
+    .dm-hist-num { font-size: 17px; letter-spacing: .22em; }
+    .dm-hist-idx { width: 14px; font-size: 10px; }
+    .dm-note { margin-top: 6px; font-size: 10px; }
+    .dm-panel-score { padding: 10px 12px; }
+    .dm-divider { margin: 8px 0 !important; }
+    .dm-avg-value { font-size: 18px !important; }
+    .dm-avg-grade { font-size: 28px !important; }
+    .dm-ta-desc { display: none; }
+    .dm-big-btn { padding: 9px 0; font-size: 13px; border-radius: 10px; }
+  }
+  /* Extra compaction for short screens */
+  @media (max-width: 720px) and (max-height: 700px) {
+    .dm-root { padding: 8px 10px 10px; }
+    .dm-wave-num { font-size: 24px; }
+    .dm-digit { height: 42px; font-size: 26px; }
+    .dm-step { height: 24px; }
+    .dm-confirm { height: 40px; }
+    .dm-note { display: none; }
+    .dm-panel { padding: 8px 10px; }
+    .dm-panel-label { margin-bottom: 6px; }
+  }
 `;
 
 function DigitDisplay({ value, color, matched }) {
@@ -328,7 +384,7 @@ export default function App() {
           <div className="dm-col" style={{ opacity: done ? 0.55 : 1 }}>
 
             {/* TARGET */}
-            <div className="dm-panel" style={{
+            <div className="dm-panel dm-panel-target" style={{
               borderColor: flash ? "#f97066" : undefined,
               background: flash ? "rgba(249,112,102,.06)" : undefined,
               transition: "all .15s",
@@ -344,7 +400,7 @@ export default function App() {
             </div>
 
             {/* CURRENT */}
-            <div className="dm-panel" style={{
+            <div className="dm-panel dm-panel-current" style={{
               borderColor: isMatch ? "#2dd4bf" : undefined,
               transition: "border-color .2s",
             }}>
@@ -390,7 +446,7 @@ export default function App() {
 
             {/* Wave log */}
             {wavelog.length > 0 && taState !== "running" && (
-              <div className="dm-panel" style={{ paddingTop: 12, paddingBottom: 12 }}>
+              <div className="dm-panel dm-panel-log" style={{ paddingTop: 12, paddingBottom: 12 }}>
                 <div className="dm-panel-label" style={{ marginBottom: 4 }}>HISTORY LOG</div>
                 {wavelog.slice(0, 8).map((w, i) => (
                   <div key={i} className="dm-log-row" style={{ color: w.eff >= 100 ? "#2dd4bf" : "#8b98a5" }}>
@@ -409,7 +465,7 @@ export default function App() {
           <div className="dm-col">
 
             {/* HISTORY */}
-            <div className="dm-panel" style={{ opacity: done ? 0.55 : 1 }}>
+            <div className="dm-panel dm-panel-history" style={{ opacity: done ? 0.55 : 1 }}>
               <div className="dm-panel-label">
                 <span className="dm-dot" style={{ background: "#7dd3fc" }} />
                 HISTORY
@@ -432,7 +488,7 @@ export default function App() {
             </div>
 
             {/* SCORE / TIME ATTACK */}
-            <div className="dm-panel">
+            <div className="dm-panel dm-panel-score">
               {taState !== "running" && (
                 <>
                   <div className="dm-panel-label">
@@ -445,16 +501,16 @@ export default function App() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
                         <div style={{ color: "#5b6874", fontSize: 11 }}>サンプル {avg10waves}/10</div>
-                        <div style={{ color: gradeColor(avg10eff), fontSize: 24, fontWeight: 800 }}>
+                        <div className="dm-avg-value" style={{ color: gradeColor(avg10eff), fontSize: 24, fontWeight: 800 }}>
                           {avg10eff}%
                         </div>
                       </div>
-                      <div style={{ fontSize: 44, fontWeight: 800, lineHeight: 1, color: gradeColor(avg10eff) }}>
+                      <div className="dm-avg-grade" style={{ fontSize: 44, fontWeight: 800, lineHeight: 1, color: gradeColor(avg10eff) }}>
                         {gradeLabel(avg10eff)}
                       </div>
                     </div>
                   )}
-                  <div style={{ borderTop: "1px solid #232b34", margin: "16px 0" }} />
+                  <div className="dm-divider" style={{ borderTop: "1px solid #232b34", margin: "16px 0" }} />
                 </>
               )}
 
@@ -465,7 +521,7 @@ export default function App() {
 
               {taState === "idle" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div style={{ color: "#8b98a5", fontSize: 12, lineHeight: 1.8 }}>
+                  <div className="dm-ta-desc" style={{ color: "#8b98a5", fontSize: 12, lineHeight: 1.8 }}>
                     30秒間で何ウェーブクリアできるか挑戦！<br />
                     <span style={{ color: "#5b6874" }}>スコア = Σ効率（各Wave）</span>
                   </div>
