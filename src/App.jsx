@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
 const DIGITS = 3;
-const HISTORY_SIZE = 20;
+const HISTORY_SIZE = 10;
 const TIME_ATTACK_SEC = 30;
 
 const rnd = () => Array.from({ length: DIGITS }, () => Math.floor(Math.random() * 10));
@@ -20,11 +20,11 @@ function minDist(from, to) {
 }
 
 function gradeColor(eff) {
-  if (eff >= 100) return "#00ff88";
-  if (eff >= 80)  return "#aaff44";
-  if (eff >= 60)  return "#ffdd00";
-  if (eff >= 40)  return "#ff9900";
-  return "#ff4444";
+  if (eff >= 100) return "#2dd4bf";
+  if (eff >= 80)  return "#a3e635";
+  if (eff >= 60)  return "#f5c451";
+  if (eff >= 40)  return "#fb923c";
+  return "#f97066";
 }
 function gradeLabel(eff) {
   if (eff >= 100) return "S";
@@ -34,46 +34,116 @@ function gradeLabel(eff) {
   return "D";
 }
 
-function DigitDisplay({ value, color, glow }) {
-  return (
-    <div style={{
-      width: 56, height: 72,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 40, fontWeight: 900, color,
-      background: "rgba(0,0,0,0.5)",
-      border: `2px solid ${color}`,
-      borderRadius: 6,
-      boxShadow: glow ? `0 0 14px ${color}, inset 0 0 10px rgba(0,0,0,0.5)` : "none",
-      fontFamily: "'Courier New', monospace",
-      textShadow: glow ? `0 0 12px ${color}` : "none",
-      transition: "all 0.12s",
-      userSelect: "none",
-    }}>{value}</div>
-  );
-}
+const CSS = `
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .dm-root {
+    min-height: 100vh;
+    background: #0f1216;
+    color: #e8edf2;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    padding: 28px 16px 48px;
+  }
+  .dm-wrap { max-width: 880px; margin: 0 auto; }
+  .dm-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .dm-title { font-size: 13px; font-weight: 700; letter-spacing: 0.32em; color: #8b98a5; }
+  .dm-wave { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; }
+  .dm-wave-num { font-size: 44px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  .dm-wave-label { font-size: 12px; letter-spacing: 0.24em; color: #8b98a5; }
+  .dm-grid { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 720px) { .dm-grid { grid-template-columns: 1fr; } }
+  .dm-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .dm-panel {
+    background: #171c22; border: 1px solid #2a333f; border-radius: 16px;
+    padding: 18px;
+  }
+  .dm-panel-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.24em; color: #8b98a5;
+    margin-bottom: 14px;
+  }
+  .dm-dot { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+  .dm-digits { display: flex; gap: 10px; justify-content: center; }
+  .dm-digit {
+    width: 72px; height: 88px; border-radius: 12px;
+    background: #0b0e11; border: 1px solid #2a333f;
+    display: flex; align-items: center; justify-content: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace;
+    font-size: 46px; font-weight: 700; font-variant-numeric: tabular-nums;
+    user-select: none; transition: border-color .15s, background .15s, color .15s;
+  }
+  .dm-step {
+    width: 72px; height: 38px; border-radius: 10px;
+    background: #1d242d; border: 1px solid #2a333f; color: #e8edf2;
+    font-size: 15px; cursor: pointer; transition: background .1s, border-color .1s;
+    display: flex; align-items: center; justify-content: center;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  .dm-step:hover:not(:disabled) { border-color: #2dd4bf; color: #2dd4bf; }
+  .dm-step:active:not(:disabled) { background: #2dd4bf; color: #0f1216; }
+  .dm-step:disabled { opacity: .35; cursor: default; }
+  .dm-seg { display: flex; background: #171c22; border: 1px solid #2a333f; border-radius: 999px; padding: 3px; gap: 3px; }
+  .dm-seg button {
+    border: none; background: transparent; color: #8b98a5; cursor: pointer;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+    padding: 7px 16px; border-radius: 999px; transition: all .15s;
+    font-variant-numeric: tabular-nums;
+  }
+  .dm-seg button.on { background: #e8edf2; color: #0f1216; }
+  .dm-seg button:disabled { cursor: default; }
+  .dm-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .dm-stat { background: #171c22; border: 1px solid #2a333f; border-radius: 12px; padding: 10px 12px; text-align: center; }
+  .dm-stat-label { font-size: 10px; letter-spacing: 0.18em; color: #8b98a5; margin-bottom: 4px; }
+  .dm-stat-value { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .dm-confirm {
+    width: 100%; height: 54px; border-radius: 12px; border: 1px solid #2a333f;
+    background: #1d242d; color: #5b6874; font-size: 16px; font-weight: 800; letter-spacing: 0.3em;
+    cursor: default; transition: all .15s; font-family: inherit;
+  }
+  .dm-confirm.ready { background: #2dd4bf; border-color: #2dd4bf; color: #0f1216; cursor: pointer; }
+  .dm-confirm.ready:active { transform: scale(.99); }
+  .dm-hist { display: flex; flex-direction: column; gap: 8px; }
+  .dm-hist-row {
+    display: flex; align-items: center; gap: 14px; width: 100%;
+    background: #0f1419; border: 1px solid #2a333f; border-radius: 12px;
+    padding: 10px 16px; cursor: pointer; transition: border-color .12s, background .12s;
+    color: #e8edf2; font-family: inherit; text-align: left;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  .dm-hist-row:hover:not(:disabled) { border-color: #3d4a59; }
+  .dm-hist-row.sel { border-color: #2dd4bf; background: rgba(45,212,191,.08); }
+  .dm-hist-row:disabled { cursor: default; opacity: .6; }
+  .dm-hist-idx { font-size: 11px; color: #5b6874; width: 18px; text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .dm-hist-num {
+    font-family: ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace;
+    font-size: 22px; font-weight: 700; letter-spacing: 0.35em; font-variant-numeric: tabular-nums;
+  }
+  .dm-hist-row.sel .dm-hist-num { color: #2dd4bf; }
+  .dm-note { font-size: 11px; color: #5b6874; text-align: center; margin-top: 12px; }
+  .dm-log-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 2px; border-top: 1px solid #232b34; font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .dm-big-btn {
+    width: 100%; padding: 12px 0; border-radius: 12px; cursor: pointer;
+    font-size: 14px; font-weight: 800; letter-spacing: 0.2em; font-family: inherit;
+    transition: all .15s; touch-action: manipulation;
+  }
+  @keyframes dm-pulse { from { opacity: 1; } to { opacity: .45; } }
+  .dm-timer-low { animation: dm-pulse .5s ease-in-out infinite alternate; }
+`;
 
-function ArcadeBtn({ label, onClick, color, disabled }) {
-  const [pressed, setPressed] = useState(false);
+function DigitDisplay({ value, color, matched }) {
   return (
-    <button
-      disabled={disabled}
-      onMouseDown={() => setPressed(true)}
-      onMouseUp={() => { setPressed(false); onClick && onClick(); }}
-      onMouseLeave={() => setPressed(false)}
-      style={{
-        width: 56, height: 28,
-        background: disabled ? "#222" : pressed ? color : `${color}33`,
-        border: `1px solid ${disabled ? "#333" : color}`,
-        borderRadius: 4,
-        color: disabled ? "#444" : pressed ? "#000" : color,
-        fontSize: 14, fontWeight: "bold",
-        cursor: disabled ? "default" : "pointer",
-        transition: "all 0.08s",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        boxShadow: pressed && !disabled ? `0 0 8px ${color}` : "none",
-        fontFamily: "monospace",
-      }}
-    >{label}</button>
+    <div className="dm-digit" style={{
+      color,
+      borderColor: matched ? color : undefined,
+      background: matched ? "rgba(45,212,191,.07)" : undefined,
+    }}>{value}</div>
   );
 }
 
@@ -97,17 +167,6 @@ export default function App() {
   const [taBest, setTaBest]     = useState(null);
   const [taWaves, setTaWaves]   = useState(0);
   const timerRef = useRef(null);
-  const [scale, setScale] = useState(1);
-  useEffect(() => {
-    const calcScale = () => {
-      // content is ~500px wide; clamp between 0.45 and 1
-      const s = Math.min(1, (window.innerWidth - 16) / 500);
-      setScale(Math.max(0.45, s));
-    };
-    calcScale();
-    window.addEventListener("resize", calcScale);
-    return () => window.removeEventListener("resize", calcScale);
-  }, []);
 
   const isMatch = current.every((d, i) => d === target[i]);
   const optFrom000 = minDist(Array(DIGITS).fill(0), target);
@@ -219,377 +278,280 @@ export default function App() {
     setSelectedHist(null);
   }
 
-  const col1 = history.slice(0, 10);
-  const col2 = history.slice(10, 20);
-  const timerColor = taTime > 10 ? "#00ff88" : taTime > 5 ? "#ffdd00" : "#ff3355";
+  const timerColor = taTime > 10 ? "#2dd4bf" : taTime > 5 ? "#f5c451" : "#f97066";
+  const done = taState === "done";
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#0a0a0f",
-      backgroundImage: "radial-gradient(ellipse at 20% 30%, #0d1f3c 0%, transparent 60%), radial-gradient(ellipse at 80% 70%, #1a0d2e 0%, transparent 60%)",
-      display: "flex", alignItems: "flex-start", justifyContent: "center",
-      paddingTop: `${Math.max(8, (window.innerHeight - 900 * scale) / 2)}px`,
-      paddingBottom: 8,
-      fontFamily: "'Courier New', monospace",
-      overflowX: "hidden",
-      overflowY: "auto",
-      boxSizing: "border-box",
-    }}>
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 100,
-        background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px)" }} />
+    <div className="dm-root">
+      <style>{CSS}</style>
+      <div className="dm-wrap">
 
-      <div style={{
-        display: "flex", gap: 24, alignItems: "flex-start",
-        transformOrigin: "top center",
-        transform: `scale(${scale})`,
-        transition: "transform 0.15s",
-      }}>
-
-        {/* ===== LEFT PANEL ===== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", minWidth: 220 }}>
-
-          {/* Mode Toggle */}
-          <div style={{ display: "flex", gap: 0, width: "100%", borderRadius: 8, overflow: "hidden", border: "1px solid #2a2a2a" }}>
+        {/* ===== HEADER ===== */}
+        <div className="dm-head">
+          <div>
+            <div className="dm-title">DIGIT MATCH</div>
+            <div className="dm-wave">
+              <span className="dm-wave-label">WAVE</span>
+              <span className="dm-wave-num">{String(wave).padStart(2, "0")}</span>
+              {taState === "running" && (
+                <span className={taTime <= 5 ? "dm-timer-low" : undefined} style={{
+                  marginLeft: 14, fontSize: 30, fontWeight: 800, color: timerColor,
+                  fontVariantNumeric: "tabular-nums", lineHeight: 1,
+                }}>{taTime}<span style={{ fontSize: 13, color: "#8b98a5", marginLeft: 4 }}>sec</span></span>
+              )}
+            </div>
+          </div>
+          <div className="dm-seg" role="tablist" aria-label="mode">
             {["normal", "limited"].map(m => (
-              <button key={m} onClick={() => {
-                if (mode === m || taState === "running") return;
-                setMode(m);
-                setTarget(rndByMode(m));
-                setCurrent(Array(DIGITS).fill(0));
-                setMoves(0);
-                setWave(1);
-                setWavelog([]);
-                setHistory(rndHistory(() => rndByMode(m)));
-                setSelectedHist(null);
-              }} style={{
-                flex: 1, padding: "6px 0",
-                background: mode === m ? (m === "normal" ? "#1a3a1a" : "#1a1a3a") : "transparent",
-                border: "none",
-                color: mode === m ? (m === "normal" ? "#00cc66" : "#6699ff") : "#333",
-                fontSize: 10, fontWeight: 900, letterSpacing: 2,
-                cursor: taState === "running" ? "default" : "pointer",
-                transition: "all 0.15s",
-                borderRight: m === "normal" ? "1px solid #2a2a2a" : "none",
-                textShadow: mode === m ? `0 0 8px ${m === "normal" ? "#00cc66" : "#6699ff"}` : "none",
-              }}>
-                {m === "normal" ? "0-999" : "0-199"}
+              <button key={m}
+                className={mode === m ? "on" : undefined}
+                disabled={taState === "running"}
+                onClick={() => {
+                  if (mode === m || taState === "running") return;
+                  setMode(m);
+                  setTarget(rndByMode(m));
+                  setCurrent(Array(DIGITS).fill(0));
+                  setMoves(0);
+                  setWave(1);
+                  setWavelog([]);
+                  setHistory(rndHistory(() => rndByMode(m)));
+                  setSelectedHist(null);
+                }}>
+                {m === "normal" ? "0–999" : "0–199"}
               </button>
             ))}
           </div>
-
-          {/* Wave + Timer */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ color: "#555", fontSize: 11, letterSpacing: 4 }}>WAVE</div>
-              <div style={{ color: "#fff", fontSize: 32, fontWeight: 900, textShadow: "0 0 20px rgba(255,255,255,0.4)", lineHeight: 1 }}>
-                {String(wave).padStart(2, "0")}
-              </div>
-            </div>
-            {taState === "running" && (
-              <div style={{ marginLeft: "auto", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <div style={{ color: "#555", fontSize: 9, letterSpacing: 2 }}>TIME</div>
-                <div style={{
-                  color: timerColor, fontSize: 28, fontWeight: 900, lineHeight: 1,
-                  textShadow: `0 0 16px ${timerColor}`,
-                  animation: taTime <= 5 ? "pulse 0.5s ease-in-out infinite alternate" : "none",
-                }}>{taTime}</div>
-              </div>
-            )}
-          </div>
-
-          {/* TARGET */}
-          <div style={{
-            padding: "10px 14px 12px", border: "2px solid #ff3355", borderRadius: 10,
-            background: flash ? "rgba(255,100,50,0.25)" : "rgba(255,51,85,0.08)",
-            boxShadow: flash ? "0 0 30px #ff3355" : "0 0 10px rgba(255,51,85,0.2)",
-            transition: "all 0.15s", opacity: taState === "done" ? 0.4 : 1,
-          }}>
-            <div style={{ color: "#ff3355", fontSize: 10, letterSpacing: 4, marginBottom: 8, textAlign: "center" }}>
-              ■ TARGET {mode === "limited" && <span style={{ color: "#6699ff", fontSize: 9 }}>[0-199]</span>}
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {target.map((d, i) => <DigitDisplay key={i} value={d} color="#ff3355" glow />)}
-            </div>
-          </div>
-
-          {/* CURRENT */}
-          <div style={{
-            padding: "10px 14px 12px", border: "2px solid #00cc66", borderRadius: 10,
-            background: isMatch ? "rgba(0,255,136,0.12)" : "rgba(0,204,102,0.06)",
-            boxShadow: isMatch ? "0 0 20px rgba(0,255,136,0.4)" : "0 0 8px rgba(0,204,102,0.15)",
-            transition: "all 0.2s", opacity: taState === "done" ? 0.4 : 1,
-          }}>
-            <div style={{ color: "#00cc66", fontSize: 10, letterSpacing: 4, marginBottom: 8, textAlign: "center" }}>■ CURRENT</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {current.map((d, i) => (
-                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-                  <ArcadeBtn label="＋▲" color="#00cc66" onClick={() => adjust(i, 1)} disabled={taState === "done"} />
-                  <DigitDisplay value={d} color={d === target[i] ? "#00ff88" : "#00cc66"} glow={d === target[i]} />
-                  <ArcadeBtn label="－▼" color="#00cc66" onClick={() => adjust(i, -1)} disabled={taState === "done"} />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div style={{
-            width: "100%", padding: "8px 12px",
-            border: "1px solid #222", borderRadius: 8,
-            background: "rgba(255,255,255,0.03)",
-            display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", fontSize: 11,
-          }}>
-            <div style={{ color: "#555" }}>手数</div>
-            <div style={{ color: "#fff", textAlign: "right", fontWeight: "bold" }}>{moves}</div>
-            <div style={{ color: "#555" }}>最短</div>
-            <div style={{ color: "#64b5f6", textAlign: "right", fontWeight: "bold" }}>{trueOptimal}</div>
-            <div style={{ color: "#555" }}>効率</div>
-            <div style={{ color: effColor, textAlign: "right", fontWeight: "bold" }}>
-              {moves === 0 ? "—" : `${efficiency}%`}
-            </div>
-          </div>
-
-          {/* CONFIRM */}
-          <button
-            onClick={confirm}
-            disabled={!isMatch || taState === "done"}
-            style={{
-              width: "100%", padding: "11px 0",
-              background: isMatch && taState !== "done" ? "linear-gradient(90deg, #0044aa, #0066ff)" : "#111",
-              border: `2px solid ${isMatch && taState !== "done" ? "#4499ff" : "#333"}`,
-              borderRadius: 8, color: isMatch && taState !== "done" ? "#fff" : "#444",
-              fontSize: 16, fontWeight: 900, letterSpacing: 4,
-              cursor: isMatch && taState !== "done" ? "pointer" : "default",
-              boxShadow: isMatch && taState !== "done" ? "0 0 20px rgba(68,153,255,0.5)" : "none",
-              transition: "all 0.2s",
-              textShadow: isMatch && taState !== "done" ? "0 0 10px rgba(255,255,255,0.6)" : "none",
-            }}
-          >{isMatch && taState !== "done" ? "✓ 決 定" : "決 定"}</button>
-
-          {/* Wave log */}
-          {wavelog.length > 0 && taState !== "running" && (
-            <div style={{ width: "100%", fontSize: 10 }}>
-              <div style={{ color: "#333", letterSpacing: 2, marginBottom: 4 }}>HISTORY LOG</div>
-              {wavelog.slice(0, 8).map((w, i) => (
-                <div key={i} style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "3px 0", borderTop: "1px solid #1a1a1a",
-                  color: w.eff >= 100 ? "#00ff88" : "#888",
-                }}>
-                  <span style={{ color: "#444" }}>W{w.wave}</span>
-                  <span style={{ color: "#666" }}>{str3(w.target)}</span>
-                  <span>{w.moves}手</span>
-                  <span style={{ color: "#333" }}>/{w.optimal}</span>
-                  {w.eff >= 100 && <span style={{ color: "#00ff88" }}>★</span>}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
-        {/* ===== RIGHT COLUMN ===== */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="dm-grid">
+          {/* ===== LEFT ===== */}
+          <div className="dm-col" style={{ opacity: done ? 0.55 : 1 }}>
 
-          {/* HISTORY */}
-          <div style={{
-            border: "2px solid #00bcd4", borderRadius: 10,
-            padding: "12px 10px", background: "rgba(0,188,212,0.04)",
-            boxShadow: "0 0 16px rgba(0,188,212,0.15)",
-            opacity: taState === "done" ? 0.5 : 1,
-          }}>
-            <div style={{ color: "#00bcd4", fontSize: 10, letterSpacing: 4, textAlign: "center", marginBottom: 10 }}>■ HISTORY</div>
-            <div style={{ display: "flex", gap: 6 }}>
-              {[col1, col2].map((col, ci) => (
-                <div key={ci} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  {col.map((digits, ri) => {
-                    const idx = ci * 10 + ri;
-                    const isSelected = selectedHist === idx;
-                    return (
-                      <button key={ri} onClick={() => loadHist(idx)} style={{
-                        display: "flex", alignItems: "center", gap: 5, padding: "4px 8px",
-                        background: isSelected ? "rgba(0,188,212,0.25)" : "rgba(0,188,212,0.04)",
-                        border: `1px solid ${isSelected ? "#00bcd4" : "#00bcd422"}`,
-                        borderRadius: 4, cursor: taState !== "done" ? "pointer" : "default",
-                        transition: "all 0.1s", width: 82,
-                        boxShadow: isSelected ? "0 0 8px rgba(0,188,212,0.4)" : "none",
-                      }}
-                        onMouseEnter={e => { if (!isSelected && taState !== "done") e.currentTarget.style.background = "rgba(0,188,212,0.12)"; }}
-                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "rgba(0,188,212,0.04)"; }}
-                      >
-                        <span style={{ color: "#334", fontSize: 9, width: 14, textAlign: "right", flexShrink: 0 }}>{ci * 10 + ri + 1}</span>
-                        <span style={{
-                          fontFamily: "monospace", fontSize: 16, fontWeight: 900, letterSpacing: 3,
-                          color: isSelected ? "#00eeff" : "#9de",
-                          textShadow: isSelected ? "0 0 8px #00bcd4" : "none",
-                        }}>{str3(digits)}</span>
-                      </button>
-                    );
-                  })}
+            {/* TARGET */}
+            <div className="dm-panel" style={{
+              borderColor: flash ? "#f97066" : undefined,
+              background: flash ? "rgba(249,112,102,.06)" : undefined,
+              transition: "all .15s",
+            }}>
+              <div className="dm-panel-label">
+                <span className="dm-dot" style={{ background: "#f97066" }} />
+                TARGET
+                {mode === "limited" && <span style={{ color: "#8b98a5", letterSpacing: ".08em" }}>[0–199]</span>}
+              </div>
+              <div className="dm-digits">
+                {target.map((d, i) => <DigitDisplay key={i} value={d} color="#f97066" />)}
+              </div>
+            </div>
+
+            {/* CURRENT */}
+            <div className="dm-panel" style={{
+              borderColor: isMatch ? "#2dd4bf" : undefined,
+              transition: "border-color .2s",
+            }}>
+              <div className="dm-panel-label">
+                <span className="dm-dot" style={{ background: "#2dd4bf" }} />
+                CURRENT
+                {isMatch && <span style={{ color: "#2dd4bf", letterSpacing: ".08em" }}>— MATCH</span>}
+              </div>
+              <div className="dm-digits">
+                {current.map((d, i) => (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                    <button className="dm-step" onClick={() => adjust(i, 1)} disabled={done} aria-label={`digit ${i + 1} up`}>▲</button>
+                    <DigitDisplay value={d} color={d === target[i] ? "#2dd4bf" : "#e8edf2"} matched={d === target[i]} />
+                    <button className="dm-step" onClick={() => adjust(i, -1)} disabled={done} aria-label={`digit ${i + 1} down`}>▼</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="dm-stats">
+              <div className="dm-stat">
+                <div className="dm-stat-label">手数</div>
+                <div className="dm-stat-value">{moves}</div>
+              </div>
+              <div className="dm-stat">
+                <div className="dm-stat-label">最短</div>
+                <div className="dm-stat-value" style={{ color: "#7dd3fc" }}>{trueOptimal}</div>
+              </div>
+              <div className="dm-stat">
+                <div className="dm-stat-label">効率</div>
+                <div className="dm-stat-value" style={{ color: moves === 0 ? "#5b6874" : effColor }}>
+                  {moves === 0 ? "—" : `${efficiency}%`}
                 </div>
-              ))}
+              </div>
             </div>
-            <div style={{ color: "#1e4455", fontSize: 9, textAlign: "center", marginTop: 8, letterSpacing: 1 }}>
-              クリックで呼び出し → 増減で調整
-            </div>
+
+            {/* CONFIRM */}
+            <button className={`dm-confirm${isMatch && !done ? " ready" : ""}`}
+              onClick={confirm} disabled={!isMatch || done}>
+              決定
+            </button>
+
+            {/* Wave log */}
+            {wavelog.length > 0 && taState !== "running" && (
+              <div className="dm-panel" style={{ paddingTop: 12, paddingBottom: 12 }}>
+                <div className="dm-panel-label" style={{ marginBottom: 4 }}>HISTORY LOG</div>
+                {wavelog.slice(0, 8).map((w, i) => (
+                  <div key={i} className="dm-log-row" style={{ color: w.eff >= 100 ? "#2dd4bf" : "#8b98a5" }}>
+                    <span style={{ color: "#5b6874" }}>W{w.wave}</span>
+                    <span>{str3(w.target)}</span>
+                    <span>{w.moves}手</span>
+                    <span style={{ color: "#5b6874" }}>/ {w.optimal}</span>
+                    <span style={{ width: 14, textAlign: "right" }}>{w.eff >= 100 ? "★" : ""}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* ===== SCORE / TIME ATTACK PANEL ===== */}
-          <div style={{
-            border: `2px solid ${taState === "running" ? "#ffdd00" : taState === "done" ? "#ff3355" : "#ff9900"}`,
-            borderRadius: 10, padding: "12px 12px",
-            background: taState === "done" ? "rgba(255,51,85,0.08)"
-              : taState === "running" ? "rgba(255,221,0,0.06)" : "rgba(255,153,0,0.05)",
-            boxShadow: taState === "running" ? "0 0 20px rgba(255,221,0,0.3)"
-              : taState === "done" ? "0 0 20px rgba(255,51,85,0.3)" : "0 0 10px rgba(255,153,0,0.15)",
-            transition: "all 0.3s", minWidth: 178,
-          }}>
+          {/* ===== RIGHT ===== */}
+          <div className="dm-col">
 
-            {/* 10-wave avg (free play or done) */}
-            {taState !== "running" && (
-              <>
-                <div style={{ color: "#ff9900", fontSize: 10, letterSpacing: 3, textAlign: "center", marginBottom: 8 }}>
-                  ■ 10 WAVE AVG
-                </div>
-                {avg10waves === 0 ? (
-                  <div style={{ color: "#333", fontSize: 10, textAlign: "center", padding: "2px 0 6px" }}>
-                    — ウェーブ完了待ち —
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <div>
-                      <div style={{ color: "#555", fontSize: 9 }}>サンプル {avg10waves}/10</div>
-                      <div style={{ color: avg10eff !== null ? gradeColor(avg10eff) : "#555", fontSize: 20, fontWeight: 900,
-                        textShadow: avg10eff !== null ? `0 0 10px ${gradeColor(avg10eff)}` : "none" }}>
-                        {avg10eff !== null ? `${avg10eff}%` : "—"}
-                      </div>
-                    </div>
-                    {avg10eff !== null && (
-                      <div style={{
-                        fontSize: 36, fontWeight: 900, lineHeight: 1,
-                        color: gradeColor(avg10eff),
-                        textShadow: `0 0 16px ${gradeColor(avg10eff)}`,
-                      }}>{gradeLabel(avg10eff)}</div>
-                    )}
-                  </div>
-                )}
-                <div style={{ borderTop: "1px solid #222", margin: "8px 0" }} />
-              </>
-            )}
-
-            {/* TIME ATTACK label */}
-            <div style={{ color: taState === "running" ? "#ffdd00" : "#ff9900", fontSize: 10, letterSpacing: 3, textAlign: "center", marginBottom: 8 }}>
-              ■ TIME ATTACK
+            {/* HISTORY */}
+            <div className="dm-panel" style={{ opacity: done ? 0.55 : 1 }}>
+              <div className="dm-panel-label">
+                <span className="dm-dot" style={{ background: "#7dd3fc" }} />
+                HISTORY
+                <span style={{ marginLeft: "auto", letterSpacing: ".08em" }}>{HISTORY_SIZE}件</span>
+              </div>
+              <div className="dm-hist">
+                {history.map((digits, idx) => {
+                  const isSelected = selectedHist === idx;
+                  return (
+                    <button key={idx}
+                      className={`dm-hist-row${isSelected ? " sel" : ""}`}
+                      onClick={() => loadHist(idx)} disabled={done}>
+                      <span className="dm-hist-idx">{idx + 1}</span>
+                      <span className="dm-hist-num">{str3(digits)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="dm-note">タップで呼び出し → 増減で調整</div>
             </div>
 
-            {taState === "idle" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <div style={{ color: "#555", fontSize: 10, textAlign: "center", lineHeight: 1.7 }}>
-                  30秒間で何ウェーブ<br />クリアできるか挑戦！<br />
-                  <span style={{ color: "#333" }}>スコア = Σ効率(各Wave)</span>
-                </div>
-                {taBest !== null && (
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0" }}>
-                    <span style={{ color: "#555", fontSize: 10 }}>BEST</span>
-                    <span style={{ color: "#ffd700", fontSize: 14, fontWeight: 900, textShadow: "0 0 8px #ffd700" }}>{taBest}pt</span>
+            {/* SCORE / TIME ATTACK */}
+            <div className="dm-panel">
+              {taState !== "running" && (
+                <>
+                  <div className="dm-panel-label">
+                    <span className="dm-dot" style={{ background: "#f5c451" }} />
+                    10 WAVE AVG
                   </div>
-                )}
-                <button onClick={startTimeAttack} style={{
-                  width: "100%", padding: "9px 0",
-                  background: "linear-gradient(90deg, #7a3800, #c05a00)",
-                  border: "2px solid #ff9900", borderRadius: 7,
-                  color: "#ffdd88", fontSize: 13, fontWeight: 900, letterSpacing: 3, cursor: "pointer",
-                  boxShadow: "0 0 12px rgba(255,153,0,0.3)",
-                }}>▶ START</button>
-              </div>
-            )}
+                  {avg10waves === 0 ? (
+                    <div style={{ color: "#5b6874", fontSize: 12, padding: "2px 0 4px" }}>— ウェーブ完了待ち —</div>
+                  ) : (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ color: "#5b6874", fontSize: 11 }}>サンプル {avg10waves}/10</div>
+                        <div style={{ color: gradeColor(avg10eff), fontSize: 24, fontWeight: 800 }}>
+                          {avg10eff}%
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 44, fontWeight: 800, lineHeight: 1, color: gradeColor(avg10eff) }}>
+                        {gradeLabel(avg10eff)}
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ borderTop: "1px solid #232b34", margin: "16px 0" }} />
+                </>
+              )}
 
-            {taState === "running" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#888", fontSize: 11 }}>クリア</span>
-                  <span style={{ color: "#fff", fontSize: 14, fontWeight: 900 }}>{taWaves} wave</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#888", fontSize: 11 }}>スコア</span>
-                  <span style={{ color: "#ffdd00", fontSize: 16, fontWeight: 900, textShadow: "0 0 8px #ffdd00" }}>{taScore}pt</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#888", fontSize: 11 }}>平均効率</span>
-                  <span style={{ color: taWaves === 0 ? "#555" : gradeColor(taAvgEff), fontSize: 12, fontWeight: 900 }}>
-                    {taWaves === 0 ? "—" : `${taAvgEff}%`}
-                  </span>
-                </div>
-                {/* Progress bar */}
-                <div style={{ height: 5, background: "#1a1a1a", borderRadius: 3, marginTop: 2 }}>
-                  <div style={{
-                    height: "100%", borderRadius: 3,
-                    width: `${(taTime / TIME_ATTACK_SEC) * 100}%`,
-                    background: timerColor,
-                    boxShadow: `0 0 6px ${timerColor}`,
-                    transition: "width 1s linear, background 0.3s",
-                  }} />
-                </div>
+              <div className="dm-panel-label">
+                <span className="dm-dot" style={{ background: "#fb923c" }} />
+                TIME ATTACK
               </div>
-            )}
 
-            {taState === "done" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ textAlign: "center", color: "#ff3355", fontSize: 12, letterSpacing: 3,
-                  textShadow: "0 0 10px #ff3355", fontWeight: 900 }}>TIME UP!</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 8px", fontSize: 11 }}>
-                  <span style={{ color: "#555" }}>クリア波数</span>
-                  <span style={{ color: "#fff", textAlign: "right", fontWeight: "bold" }}>{taWaves} wave</span>
-                  <span style={{ color: "#555" }}>平均効率</span>
-                  <span style={{ color: taWaves === 0 ? "#555" : gradeColor(taAvgEff), textAlign: "right", fontWeight: "bold" }}>
-                    {taWaves === 0 ? "—" : `${taAvgEff}%`}
-                  </span>
-                  <span style={{ color: "#555" }}>グレード</span>
-                  <span style={{
-                    color: taWaves === 0 ? "#555" : gradeColor(taAvgEff),
-                    textAlign: "right", fontSize: 18, fontWeight: 900,
-                    textShadow: taWaves > 0 ? `0 0 10px ${gradeColor(taAvgEff)}` : "none"
-                  }}>{taWaves === 0 ? "—" : gradeLabel(taAvgEff)}</span>
-                </div>
-                {/* Score highlight */}
-                <div style={{
-                  textAlign: "center", padding: "8px 0",
-                  border: "1px solid #ff355544", borderRadius: 6,
-                  background: "rgba(255,51,85,0.1)",
-                }}>
-                  <div style={{ color: "#666", fontSize: 9, letterSpacing: 2 }}>FINAL SCORE</div>
-                  <div style={{ color: "#ffdd00", fontSize: 28, fontWeight: 900, textShadow: "0 0 16px #ffdd00", lineHeight: 1.1 }}>
-                    {taScore}
+              {taState === "idle" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ color: "#8b98a5", fontSize: 12, lineHeight: 1.8 }}>
+                    30秒間で何ウェーブクリアできるか挑戦！<br />
+                    <span style={{ color: "#5b6874" }}>スコア = Σ効率（各Wave）</span>
                   </div>
-                  <div style={{ color: "#555", fontSize: 9 }}>pt</div>
+                  {taBest !== null && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: "#8b98a5", fontSize: 12 }}>BEST</span>
+                      <span style={{ color: "#f5c451", fontSize: 16, fontWeight: 800 }}>{taBest}pt</span>
+                    </div>
+                  )}
+                  <button className="dm-big-btn" onClick={startTimeAttack} style={{
+                    background: "#f5c451", border: "1px solid #f5c451", color: "#0f1216",
+                  }}>▶ START</button>
                 </div>
-                {taBest !== null && (
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ color: "#555", fontSize: 10 }}>BEST</span>
-                    <span style={{ color: "#ffd700", fontSize: 13, fontWeight: 900, textShadow: "0 0 6px #ffd700" }}>
-                      {taBest}pt {taScore >= taBest ? " 🏆 NEW!" : ""}
+              )}
+
+              {taState === "running" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                    <span style={{ color: "#8b98a5" }}>クリア</span>
+                    <span style={{ fontWeight: 800 }}>{taWaves} wave</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                    <span style={{ color: "#8b98a5" }}>スコア</span>
+                    <span style={{ color: "#f5c451", fontSize: 17, fontWeight: 800 }}>{taScore}pt</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                    <span style={{ color: "#8b98a5" }}>平均効率</span>
+                    <span style={{ fontWeight: 800, color: taWaves === 0 ? "#5b6874" : gradeColor(taAvgEff) }}>
+                      {taWaves === 0 ? "—" : `${taAvgEff}%`}
                     </span>
                   </div>
-                )}
-                <button onClick={startTimeAttack} style={{
-                  width: "100%", padding: "8px 0",
-                  background: "linear-gradient(90deg, #7a3800, #c05a00)",
-                  border: "2px solid #ff9900", borderRadius: 7,
-                  color: "#ffdd88", fontSize: 12, fontWeight: 900, letterSpacing: 3, cursor: "pointer",
-                }}>▶ RETRY</button>
-                <button onClick={backToFree} style={{
-                  width: "100%", padding: "6px 0",
-                  background: "transparent", border: "1px solid #2a2a2a",
-                  borderRadius: 7, color: "#444", fontSize: 11, cursor: "pointer",
-                }}>フリープレイに戻る</button>
-              </div>
-            )}
+                  <div style={{ height: 6, background: "#232b34", borderRadius: 999, marginTop: 4, overflow: "hidden" }}>
+                    <div style={{
+                      height: "100%", borderRadius: 999,
+                      width: `${(taTime / TIME_ATTACK_SEC) * 100}%`,
+                      background: timerColor,
+                      transition: "width 1s linear, background .3s",
+                    }} />
+                  </div>
+                </div>
+              )}
+
+              {taState === "done" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ color: "#f97066", fontSize: 13, letterSpacing: ".24em", fontWeight: 800 }}>TIME UP!</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px", fontSize: 12 }}>
+                    <span style={{ color: "#8b98a5" }}>クリア波数</span>
+                    <span style={{ textAlign: "right", fontWeight: 800 }}>{taWaves} wave</span>
+                    <span style={{ color: "#8b98a5" }}>平均効率</span>
+                    <span style={{ textAlign: "right", fontWeight: 800, color: taWaves === 0 ? "#5b6874" : gradeColor(taAvgEff) }}>
+                      {taWaves === 0 ? "—" : `${taAvgEff}%`}
+                    </span>
+                    <span style={{ color: "#8b98a5" }}>グレード</span>
+                    <span style={{
+                      textAlign: "right", fontSize: 20, fontWeight: 800,
+                      color: taWaves === 0 ? "#5b6874" : gradeColor(taAvgEff),
+                    }}>{taWaves === 0 ? "—" : gradeLabel(taAvgEff)}</span>
+                  </div>
+                  <div style={{
+                    textAlign: "center", padding: "12px 0",
+                    border: "1px solid #2a333f", borderRadius: 12, background: "#0f1419",
+                  }}>
+                    <div style={{ color: "#8b98a5", fontSize: 10, letterSpacing: ".24em" }}>FINAL SCORE</div>
+                    <div style={{ color: "#f5c451", fontSize: 34, fontWeight: 800, lineHeight: 1.2 }}>{taScore}</div>
+                    <div style={{ color: "#5b6874", fontSize: 10 }}>pt</div>
+                  </div>
+                  {taBest !== null && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: "#8b98a5", fontSize: 12 }}>BEST</span>
+                      <span style={{ color: "#f5c451", fontSize: 14, fontWeight: 800 }}>
+                        {taBest}pt {taScore >= taBest ? "🏆 NEW!" : ""}
+                      </span>
+                    </div>
+                  )}
+                  <button className="dm-big-btn" onClick={startTimeAttack} style={{
+                    background: "#f5c451", border: "1px solid #f5c451", color: "#0f1216",
+                  }}>▶ RETRY</button>
+                  <button className="dm-big-btn" onClick={backToFree} style={{
+                    background: "transparent", border: "1px solid #2a333f", color: "#8b98a5",
+                  }}>フリープレイに戻る</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes pulse { from { opacity: 1; } to { opacity: 0.4; } }
-      `}</style>
     </div>
   );
 }
